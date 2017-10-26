@@ -18,7 +18,7 @@ def readDepthMap(depthMapName):
 
 def saveImg(img, imgName):
     img = np.moveaxis(a=img, source=0, destination=-1)
-    img = cv2.cvtColor(src=img, code=cv2.COLOR_RGB2BGR)
+    img = cv2.cvtColor(src=img.astype(np.uint8), code=cv2.COLOR_RGB2BGR)
     cv2.imwrite(filename=imgName, img=img)
     return
 
@@ -42,14 +42,15 @@ def depthSegment(depthMap, depthLayer, lowerBound=0, upperBound=255):
     cut = ((upperBound-lowerBound) // depthLayer) + 1 
     l = lowerBound
     u = lowerBound + cut
-    seg = []
+    rawSeg = []
+    dilateSeg = []
     for i in range(depthLayer):
-        rawSeg = (depthMap >= l) & (depthMap < u)
-        dilateSeg = dilate(rawSeg)
-        seg.append(dilateSeg)
+        seg = (depthMap >= l) & (depthMap < u)
+        dilateSeg.append(dilate(seg))
+        rawSeg.append(seg)
         l = l + cut
         u = u + cut
-    return seg
+    return (rawSeg, dilateSeg)
 
 
 def depthDependentBlur(img, depthLayer, focusSegmentIndex, dofLevel=1):
@@ -88,25 +89,33 @@ def dilate(depthSegmentation):
     # depthSegmentation = np.moveaxis(a=depthSegmentation, source=-1, destination=0)
     return depthSegmentation.astype(np.uint64)
 
-def calcBoundary(depthSegmentation):
+def calcBoundary(dilatedSegmentation):
     boundary = []
-    for i in range(len(depthSegmentation)-1):
-        dilatedForeground = dilate(depthSegmentation[i])
-        dilatedBackground = dilate(depthSegmentation[i+1])
-        b = dilatedForeground & dilatedBackground
-        boundary.append(b.astype(np.bool))
+    for i in range(len(dilatedSegmentation)):
+        boundary.append([])
+        for j in range(i+1, len(dilatedSegmentation)):
+            dilatedForeground = dilatedSegmentation[i]
+            dilatedBackground = dilatedSegmentation[j]
+            b = dilatedForeground & dilatedBackground
+            boundary[i].append(b.astype(np.bool))
     return boundary
 
-def render(blurredImg, depthSegmentation, boundary, alpha=2):
-    result = blurredImg[0] * depthSegmentation[0]
+def render(blurredImg, rawSegmentation, dilatedSegmentation, boundary, alpha=2):
+    boundaryMap = np.ones(shape=boundary[0][0].shape, dtype=np.uint64)
+    result = blurredImg[0] * dilatedSegmentation[0]
     for i in range(1, len(blurredImg)):
-        result += blurredImg[i] * depthSegmentation[i]
-    temp = np.array(result)
+        result += blurredImg[i] * dilatedSegmentation[i]
     result = np.moveaxis(a=result, source=0, destination=-1)
-    for b in boundary:
-        result[b] //= alpha
+    for blist in boundary:
+        for b in blist:
+            boundaryMap += b
     result = np.moveaxis(a=result, source=-1, destination=0)
-    return result.astype(np.uint8), temp
+    result //= boundaryMap
+    return result.astype(np.uint8), boundaryMap
+
+def calcAlphaMap(depthMap, depthLayer, lowerBound, upperBound):
+
+    return
 
 
 # if __name__ == '__main__':
