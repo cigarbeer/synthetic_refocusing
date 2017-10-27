@@ -42,15 +42,15 @@ def depthSegment(depthMap, depthLayer, lowerBound=0, upperBound=255):
     cut = ((upperBound-lowerBound) // depthLayer) + 1 
     l = lowerBound
     u = lowerBound + cut
-    rawSeg = []
+    # rawSeg = []
     dilatedSeg = []
     for i in range(depthLayer):
         seg = (depthMap >= l) & (depthMap < u)
         dilatedSeg.append(dilate(seg))
-        rawSeg.append(seg)
+        # rawSeg.append(seg)
         l = l + cut
         u = u + cut
-    return (rawSeg, dilatedSeg)
+    return dilatedSeg
 
 
 def depthDependentBlur(img, depthLayer, focusSegmentIndex, dofLevel=1):
@@ -66,7 +66,9 @@ def depthDependentBlur(img, depthLayer, focusSegmentIndex, dofLevel=1):
     return blurredImg
 
 def calcSigma(segmentIndex, focusSegmentIndex, dofLevel):
-    sigma = dofLevel * np.abs(segmentIndex-focusSegmentIndex)
+    n = np.abs(segmentIndex-focusSegmentIndex)
+    # sigma = dofLevel*np.log(n+1)
+    sigma = dofLevel * n
     return sigma
 
 def blur(img, sigma):
@@ -84,7 +86,8 @@ def sharpen(img):
 
 def dilate(depthSegmentation):
     # img = np.moveaxis(a=img, source=0, destination=-1)
-    kernel = np.ones(shape=(5, 5), dtype=np.uint8)
+    shape = (5, 5)
+    kernel = np.ones(shape=shape, dtype=np.uint8)
     depthSegmentation = cv2.dilate(src=depthSegmentation.astype(np.uint8), kernel=kernel)
     # depthSegmentation = np.moveaxis(a=depthSegmentation, source=-1, destination=0)
     return depthSegmentation.astype(np.uint16)
@@ -132,8 +135,7 @@ def calcBoundaryMap(boundary):
 FLOWERFOCUSINDEX = [0, 1, 4, 8]
 ARTFOCUSINDEX = [4, 5, 6, 7, 9]
 JADEPLANTFOCUSINDEX = [3, 5, 6, 7, 8, 9]
-# DOFLEVEL = [0.7, 1.2, 1.5]
-DOFLEVEL = [2]
+DOFLEVEL = [1.0, 1.2, 1.5, 1.7]
 DEPTHLAYER = 10
 
 
@@ -146,7 +148,7 @@ if __name__ == '__main__':
     lowerBound = np.min(a=depthMap)
     upperBound = np.max(a=depthMap)
 
-    rawSeg, dilatedSeg = depthSegment(depthMap=depthMap, depthLayer=DEPTHLAYER, lowerBound=lowerBound, upperBound=upperBound)
+    dilatedSeg = depthSegment(depthMap=depthMap, depthLayer=DEPTHLAYER, lowerBound=lowerBound, upperBound=upperBound)
     boundary = calcBoundary(dilatedSegmentation=dilatedSeg)
 
     run(depthLayer=DEPTHLAYER, focusSegmentIndex=FLOWERFOCUSINDEX, dofLevel=DOFLEVEL, dilatedSeg=dilatedSeg, boundary=boundary, refocusedPath='./result/flower/')
@@ -159,7 +161,7 @@ if __name__ == '__main__':
     lowerBound = np.min(a=depthMap)
     upperBound = np.max(a=depthMap)
 
-    rawSeg, dilatedSeg = depthSegment(depthMap=depthMap, depthLayer=DEPTHLAYER, lowerBound=lowerBound, upperBound=upperBound)
+    dilatedSeg = depthSegment(depthMap=depthMap, depthLayer=DEPTHLAYER, lowerBound=lowerBound, upperBound=upperBound)
     boundary = calcBoundary(dilatedSegmentation=dilatedSeg)
     
     
@@ -174,7 +176,7 @@ if __name__ == '__main__':
     lowerBound = np.min(a=depthMap)
     upperBound = np.max(a=depthMap)
 
-    rawSeg, dilatedSeg = depthSegment(depthMap=depthMap, depthLayer=DEPTHLAYER, lowerBound=lowerBound, upperBound=upperBound)
+    dilatedSeg = depthSegment(depthMap=depthMap, depthLayer=DEPTHLAYER, lowerBound=lowerBound, upperBound=upperBound)
     boundary = calcBoundary(dilatedSegmentation=dilatedSeg)
     
     
